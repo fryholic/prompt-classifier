@@ -1,0 +1,5 @@
+/.conda
+.env
+tempCodeRunnerFile.py
+/test_images
+/src/prompt_classifier/__pycache__
