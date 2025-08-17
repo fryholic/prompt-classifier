@@ -2,4 +2,5 @@
 .env
 tempCodeRunnerFile.py
 /test_images
-/src/prompt_classifier/__pycache__
+src/prompt_classifier/ui/__pycache__/*
+src/prompt_classifier/__pycache__/*
