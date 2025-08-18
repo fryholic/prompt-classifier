@@ -3,8 +3,8 @@
 import json
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, 
                              QLabel, QTextEdit, QPushButton, QSplitter, 
-                             QListWidgetItem, QMessageBox, QScrollArea)
-from PyQt6.QtGui import QPixmap, QIcon
+                             QListWidgetItem, QMessageBox, QScrollArea, QMenu)
+from PyQt6.QtGui import QPixmap, QIcon, QAction
 from PyQt6.QtCore import Qt, QSize, QCoreApplication
 
 from src.prompt_classifier import db_manager
@@ -26,6 +26,8 @@ class FavoritesWindow(QWidget):
         self.favorites_list = QListWidget()
         self.favorites_list.setIconSize(QSize(150, 150))
         self.favorites_list.itemClicked.connect(self.on_favorite_selected)
+        self.favorites_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.favorites_list.customContextMenuRequested.connect(self.show_context_menu)
         
         self.image_viewer = QLabel("이미지를 선택하세요.")
         self.image_viewer.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -68,6 +70,50 @@ class FavoritesWindow(QWidget):
         
         # 전체 화면으로 시작
         self.showMaximized()
+
+    def show_context_menu(self, pos):
+        """리스트 위젯의 컨텍스트 메뉴를 표시합니다."""
+        item = self.favorites_list.itemAt(pos)
+        if not item:
+            return
+
+        menu = QMenu()
+        delete_action = QAction("즐겨찾기에서 삭제", self)
+        delete_action.triggered.connect(self.delete_favorite)
+        menu.addAction(delete_action)
+        
+        menu.exec(self.favorites_list.mapToGlobal(pos))
+
+    def delete_favorite(self):
+        """선택된 항목을 즐겨찾기에서 삭제합니다."""
+        if not self.current_item_data:
+            # 현재 선택된 아이템이 없을 경우, 오른쪽 클릭된 아이템을 기준으로 삼는다.
+            selected_items = self.favorites_list.selectedItems()
+            if not selected_items:
+                QMessageBox.warning(self, "오류", "삭제할 항목을 선택하세요.")
+                return
+            self.current_item_data = selected_items[0].data(Qt.ItemDataRole.UserRole)
+
+
+        reply = QMessageBox.question(self, '삭제 확인', 
+                                     f"'{self.current_item_data['image_path']}'를 즐겨찾기에서 삭제하시겠습니까?",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                                     QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            db_manager.remove_favorite(self.current_item_data['image_path'])
+            self.load_favorites()
+            self.clear_selection()
+            QMessageBox.information(self, "완료", "즐겨찾기에서 삭제되었습니다.")
+
+    def clear_selection(self):
+        """선택된 항목의 상세 정보 표시를 초기화합니다."""
+        self.current_item_data = None
+        self.image_viewer.clear()
+        self.image_viewer.setText("이미지를 선택하세요.")
+        self.prompt_display.clear()
+        self.clear_results_layout()
+        self.results_layout.addWidget(QLabel("분류를 실행해 주세요."))
 
     def load_favorites(self):
         """DB에서 즐겨찾기 목록을 불러와 리스트에 표시합니다."""
